@@ -35,7 +35,7 @@ class bnn(object):
 
     def loss(self, params, x, y, dataset_size):
         predictions = self.feedforward(params, x)
-        return jnp.mean(optax.squared_error(predictions, y), 1) + self.kl_divergence(params['mu_biases'], params['mu_weights'], params['rho_biases'], params['rho_weights'], dataset_size)/dataset_size
+        return jnp.mean(optax.squared_error(predictions, y)) + self.kl_divergence(params['mu_biases'], params['mu_weights'], params['rho_biases'], params['rho_weights'], dataset_size)/dataset_size
     
     def kl_divergence(self, mu_b_list, mu_w_list, rho_b_list, rho_w_list, dataset_size):
         total_kl = 0.0
@@ -52,10 +52,9 @@ class bnn(object):
             rand.shuffle(training_data)
             batches = [training_data[j : j+batch_size] for j in range(0, dataset_size, batch_size)]
             for batch in batches:
-                x = jnp.concatenate([e[0] for e in batch], 1)
-                y = jnp.concatenate([e[1] for e in batch], 1)
+                x = jnp.concatenate([e[0] for e in batch], axis=1)
+                y = jnp.concatenate([e[1] for e in batch], axis=1)
                 loss_value, gradient = self.grad_fun(self.parameters, x, y, dataset_size)
-                print(loss_value)
                 self.parameters['mu_biases'] = [mu_b - eta*delta_mu_b for mu_b, delta_mu_b in zip(self.parameters['mu_biases'], gradient['mu_biases'])]
                 self.parameters['mu_weights'] = [mu_w - eta*delta_mu_w for mu_w, delta_mu_w in zip(self.parameters['mu_weights'], gradient['mu_weights'])]
                 self.parameters['rho_biases'] = [rho_b - eta*delta_rho_b for rho_b, delta_rho_b in zip(self.parameters['rho_biases'], gradient['rho_biases'])]
