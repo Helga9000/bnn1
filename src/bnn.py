@@ -14,8 +14,8 @@ class bnn(object):
         self.parameters = {
             'mu_biases': [jnp.zeros((y, 1)) for y in self.sizes[1:]],
             'mu_weights': [random.normal(self.key, (y, x))*0.1 for x, y in zip(self.sizes[:-1], self.sizes[1:])],
-            'rho_biases': [jnp.zeros((y, 1))-5 for y in self.sizes[1:]],
-            'rho_weights': [jnp.zeros((y, x))-5 for x, y in zip(self.sizes[:-1], self.sizes[1:])],
+            'rho_biases': [jnp.zeros((y, 1))-2 for y in self.sizes[1:]],
+            'rho_weights': [jnp.zeros((y, x))-2 for x, y in zip(self.sizes[:-1], self.sizes[1:])],
             'log_sigma_noise': jnp.array(0.0)
             }
         self.grad_fun = value_and_grad(self.loss)
@@ -39,7 +39,8 @@ class bnn(object):
 
     def loss(self, params, x, y, dataset_size):
         predictions = self.feedforward(params, x)
-        return jnp.mean(optax.squared_error(predictions, y)) / (2.0*jnp.pow(jnp.exp(params['log_sigma_noise']), 2) + 1e-6) + params['log_sigma_noise'] + self.kl_divergence(params['mu_biases'], params['mu_weights'], params['rho_biases'], params['rho_weights'])/(dataset_size * self.number_of_weights)
+        kl_loss = self.kl_divergence(params['mu_biases'], params['mu_weights'], params['rho_biases'], params['rho_weights'])/(dataset_size * self.number_of_weights)
+        return jnp.mean(optax.squared_error(predictions, y)) / (2.0*jnp.pow(jnp.exp(params['log_sigma_noise']), 2) + 1e-6) + params['log_sigma_noise'] + kl_loss
     
     def kl_divergence(self, mu_b_list, mu_w_list, rho_b_list, rho_w_list):
         total_kl = 0.0
@@ -50,7 +51,8 @@ class bnn(object):
                               jnp.sum(jnp.square(sigma_w) + jnp.square(mu_w) - 1 - 2.0*jnp.log(sigma_w)))
         return total_kl
 
-    def train(self, training_data, epochs, batch_size, eta=0.002):
+    def train(self, training_data, epochs, batch_size):
+        eta = 0.1
         dataset_size = len(training_data)
         for i in range(epochs):
             rand.shuffle(training_data)
@@ -72,6 +74,8 @@ class bnn(object):
                     delta_log_sigma_noise = delta_log_sigma_noise + gradient['log_sigma_noise']
                 self.parameters['mu_biases'] = [mu_b - eta*delta_mu_b for mu_b, delta_mu_b in zip(self.parameters['mu_biases'], delta_mu_b)]
                 self.parameters['mu_weights'] = [mu_w - eta*delta_mu_w for mu_w, delta_mu_w in zip(self.parameters['mu_weights'], delta_mu_w)]
-                self.parameters['rho_biases'] = [rho_b - eta*delta_rho_b for rho_b, delta_rho_b in zip(self.parameters['rho_biases'], delta_rho_b)]
-                self.parameters['rho_weights'] = [rho_w - eta*delta_rho_w for rho_w, delta_rho_w in zip(self.parameters['rho_weights'], delta_rho_w)]
+                self.parameters['rho_biases'] = [rho_b - 20.0*eta*delta_rho_b for rho_b, delta_rho_b in zip(self.parameters['rho_biases'], delta_rho_b)]
+                self.parameters['rho_weights'] = [rho_w - 20.0*eta*delta_rho_w for rho_w, delta_rho_w in zip(self.parameters['rho_weights'], delta_rho_w)]
                 self.parameters['log_sigma_noise'] = self.parameters['log_sigma_noise'] - eta*delta_log_sigma_noise
+            if eta > 0.001:
+                eta *= 0.90
