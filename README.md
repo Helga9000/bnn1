@@ -1,2 +1,4 @@
 # bnn1
-BNN for english course
+inspired by the architechtural approach by mnielsen/neural-networks-and-deep-learning
+
+Code includes a bnn class and a small regression test
