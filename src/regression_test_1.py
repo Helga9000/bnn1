@@ -10,7 +10,7 @@ y = random.permutation(key, y)
 trainingdata = []
 for i in range(len(x)):
     a = jnp.array([[x[i]], [y[i]]])
-    z = jnp.array([[x[i] + y[i]]]) + random.uniform(random.key(i), (1, 1)) * 0.6 - 0.3
+    z = jnp.array([[x[i] + y[i]]]) + random.uniform(random.key(i), (1, 1)) * 0.6 - 0.30
     trainingdata.append((a, z))
 net = bnn.bnn([2, 10, 1])
 net.train(trainingdata, 300, 10)
