@@ -23,5 +23,3 @@ for k in range(6):
 print("x=0.9, y=1.1")
 for k in range(6):
     print(net.feedforward(net.parameters, jnp.array([[0.9], [1.1]])))
-print("sigma_noise: ", jnp.exp(net.parameters['log_sigma_noise']))
-print(net.parameters['rho_weights'][1])

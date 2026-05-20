@@ -68,6 +68,7 @@ class bnn(object):
         _, h_tail = jax.lax.scan(transition_fn, h_init, eta[1:])
         h_states = jnp.concatenate([jnp.array([h_init]), h_tail])
         h_states = jnp.expand_dims(h_states, axis=0)
+        h_states = jnp.clip(h_states, min=-10.0, max=3.0)
         
         sq_error = optax.squared_error(predictions, y)
         variance = jnp.exp(h_states) + 1e-6
@@ -76,10 +77,9 @@ class bnn(object):
         kl_weights = self.kl_divergence(params['mu_biases'], params['mu_weights'], params['rho_biases'], params['rho_weights'])
         sig_h = softplus(params['rho_h_shocks'][:T])
         kl_shocks = 0.5 * jnp.sum(jnp.square(sig_h) + jnp.square(params['mu_h_shocks'][:T]) - 1.0 - 2.0*jnp.log(sig_h + 1e-6))
-        total_kl = kl_weights + kl_shocks
-        scaled_kl = total_kl / (dataset_size * self.number_of_weights)
+        total_kl = ( kl_weights/(dataset_size * self.number_of_weights) + kl_shocks ) / T
         
-        return likelihood_term + scaled_kl
+        return likelihood_term + total_kl
 
     def kl_divergence(self, mu_b_list, mu_w_list, rho_b_list, rho_w_list):
         total_kl = 0.0
@@ -102,7 +102,6 @@ class bnn(object):
             delta_mu_w = [jnp.zeros_like(mu_w) for mu_w in self.parameters['mu_weights']]
             delta_rho_b = [jnp.zeros_like(rho_b) for rho_b in self.parameters['rho_biases']]
             delta_rho_w = [jnp.zeros_like(rho_w) for rho_w in self.parameters['rho_weights']]
-            delta_log_sigma_noise = jnp.zeros_like(self.parameters['log_sigma_noise'])
             delta_sv_mu = jnp.zeros_like(self.parameters['sv_mu'])
             delta_sv_phi_raw = jnp.zeros_like(self.parameters['sv_phi_raw'])
             delta_sv_sigma_raw = jnp.zeros_like(self.parameters['sv_sigma_raw'])
@@ -133,5 +132,5 @@ class bnn(object):
             self.parameters['mu_h_shocks'] -= eta * delta_mu_h_shocks
             self.parameters['rho_h_shocks'] -= 20.0 * eta * delta_rho_h_shocks
 
-        if eta > 0.001:
+        if eta >= 0.001:
             eta *= 0.90
