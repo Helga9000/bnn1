@@ -54,8 +54,8 @@ class bnn(object):
         predictions = self.feedforward(params, x)
         T = x.shape[1] # Number of tim steps in data
         sv_mu = params['sv_mu']
-        sv_phi = jnp.tanh(params['sv_phi_raw'])
-        sv_sigma = softplus(params['sv_sigma_raw'])
+        sv_phi = 0.9 + jnp.tanh(params['sv_phi_raw']) / 20.0
+        sv_sigma = 0.05*jax.nn.sigmoid(params['sv_sigma_raw'])
 
         # Sample volatility shocks and create volatility path
         self.key, subkey = random.split(self.key)
@@ -78,8 +78,10 @@ class bnn(object):
         sig_h = softplus(params['rho_h_shocks'][:T])
         kl_shocks = 0.5 * jnp.sum(jnp.square(sig_h) + jnp.square(params['mu_h_shocks'][:T]) - 1.0 - 2.0*jnp.log(sig_h + 1e-6))
         total_kl = ( kl_weights/(dataset_size * self.number_of_weights) + kl_shocks ) / T
+
+        sv_regulizer = 200.0*jnp.square(sv_sigma)
         
-        return likelihood_term + total_kl
+        return likelihood_term + total_kl + sv_regulizer
 
     def kl_divergence(self, mu_b_list, mu_w_list, rho_b_list, rho_w_list):
         total_kl = 0.0
